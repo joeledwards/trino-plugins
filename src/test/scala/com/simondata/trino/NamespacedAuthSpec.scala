@@ -7,6 +7,8 @@
 
 package com.simondata.trino
 
+import com.simondata.trino
+import com.simondata.trino.auth.{AuthActionCreate, AuthActionDelete, AuthActionExecute, AuthActionGrant, AuthActionRead, AuthActionUpdate, AuthIdPrincipal, AuthIdUnknown, AuthIdUser, AuthQuery, AuthResourceCatalog, AuthResourceColumn, AuthResourceFunction, AuthResourceProcedure, AuthResourceQuery, AuthResourceSchema, AuthResourceSession, AuthResourceSystemInfo, AuthResourceTable, AuthResult, CustomSystemAccessControl, FilterRequest, FilterResult, NamespacedAuth, TrinoAuth}
 import io.trino.spi.security.AccessDeniedException.denyViewQuery
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -1012,7 +1014,7 @@ class NamespacedAuthSpec extends AnyWordSpec with Matchers {
         //sac.checkCanViewQueryOwnedBy()
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("admin"), AuthActionRead, AuthResourceQuery(XQuery(None, Some(AuthIdUser("ted")))))
+          AuthQuery(AuthIdUser("admin"), AuthActionRead, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("ted")))))
         ) {
           _.allow()
         }
@@ -1022,7 +1024,7 @@ class NamespacedAuthSpec extends AnyWordSpec with Matchers {
         //sac.checkCanViewQueryOwnedBy()
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("ted"), AuthActionRead, AuthResourceQuery(XQuery(None, Some(AuthIdUser("ted")))))
+          AuthQuery(AuthIdUser("ted"), AuthActionRead, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("ted")))))
         ) {
           _.allow()
         }
@@ -1032,7 +1034,7 @@ class NamespacedAuthSpec extends AnyWordSpec with Matchers {
         //sac.checkCanViewQueryOwnedBy()
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("bob"), AuthActionRead, AuthResourceQuery(XQuery(None, Some(AuthIdUser("ted")))))
+          AuthQuery(AuthIdUser("bob"), AuthActionRead, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("ted")))))
         ) {
           _.deny(TrinoAuth.messages.denyDefault)
         }
@@ -1044,25 +1046,25 @@ class NamespacedAuthSpec extends AnyWordSpec with Matchers {
         //sac.checkCanExecuteQuery()
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("anybody"), AuthActionExecute, AuthResourceQuery(XQuery(None, None)))
+          AuthQuery(AuthIdUser("anybody"), AuthActionExecute, trino.auth.AuthResourceQuery(XQuery(None, None)))
         ) {
           _.allow()
         }
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("anybody"), AuthActionExecute, AuthResourceQuery(XQuery(None, Some(AuthIdUser("root")))))
+          AuthQuery(AuthIdUser("anybody"), AuthActionExecute, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("root")))))
         ) {
           _.allow()
         }
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("anybody"), AuthActionExecute, AuthResourceQuery(XQuery(Some("1"), None)))
+          AuthQuery(AuthIdUser("anybody"), AuthActionExecute, trino.auth.AuthResourceQuery(XQuery(Some("1"), None)))
         ) {
           _.allow()
         }
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("anybody"), AuthActionExecute, AuthResourceQuery(XQuery(Some("1"), Some(AuthIdUser("root")))))
+          AuthQuery(AuthIdUser("anybody"), AuthActionExecute, trino.auth.AuthResourceQuery(XQuery(Some("1"), Some(AuthIdUser("root")))))
         ) {
           _.allow()
         }
@@ -1075,19 +1077,19 @@ class NamespacedAuthSpec extends AnyWordSpec with Matchers {
         //sac.checkCanKillQueryOwnedBy()
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("root"), AuthActionRead, AuthResourceQuery(XQuery(None, Some(AuthIdUser("root")))))
+          AuthQuery(AuthIdUser("root"), AuthActionRead, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("root")))))
         ) {
           _.allow()
         }
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("root"), AuthActionRead, AuthResourceQuery(XQuery(None, Some(AuthIdUser("admin")))))
+          AuthQuery(AuthIdUser("root"), AuthActionRead, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("admin")))))
         ) {
           _.allow()
         }
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("root"), AuthActionRead, AuthResourceQuery(XQuery(None, Some(AuthIdUser("ted")))))
+          AuthQuery(AuthIdUser("root"), AuthActionRead, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("ted")))))
         ) {
           _.allow()
         }
@@ -1098,13 +1100,13 @@ class NamespacedAuthSpec extends AnyWordSpec with Matchers {
         //sac.checkCanKillQueryOwnedBy()
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("admin"), AuthActionDelete, AuthResourceQuery(XQuery(None, Some(AuthIdUser("admin")))))
+          AuthQuery(AuthIdUser("admin"), AuthActionDelete, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("admin")))))
         ) {
           _.allow()
         }
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("admin"), AuthActionDelete, AuthResourceQuery(XQuery(None, Some(AuthIdUser("ted")))))
+          AuthQuery(AuthIdUser("admin"), AuthActionDelete, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("ted")))))
         ) {
           _.allow()
         }
@@ -1115,7 +1117,7 @@ class NamespacedAuthSpec extends AnyWordSpec with Matchers {
         //sac.checkCanKillQueryOwnedBy()
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("ted"), AuthActionDelete, AuthResourceQuery(XQuery(None, Some(AuthIdUser("ted")))))
+          AuthQuery(AuthIdUser("ted"), AuthActionDelete, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("ted")))))
         ) {
           _.allow()
         }
@@ -1126,7 +1128,7 @@ class NamespacedAuthSpec extends AnyWordSpec with Matchers {
         //sac.checkCanKillQueryOwnedBy()
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("admin"), AuthActionDelete, AuthResourceQuery(XQuery(None, Some(AuthIdUser("root")))))
+          AuthQuery(AuthIdUser("admin"), AuthActionDelete, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("root")))))
         ) {
           _.deny(TrinoAuth.messages.denyDefault)
         }
@@ -1137,19 +1139,19 @@ class NamespacedAuthSpec extends AnyWordSpec with Matchers {
         //sac.checkCanKillQueryOwnedBy()
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("ted"), AuthActionDelete, AuthResourceQuery(XQuery(None, Some(AuthIdUser("root")))))
+          AuthQuery(AuthIdUser("ted"), AuthActionDelete, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("root")))))
         ) {
           _.deny(TrinoAuth.messages.denyDefault)
         }
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("ted"), AuthActionDelete, AuthResourceQuery(XQuery(None, Some(AuthIdUser("admin")))))
+          AuthQuery(AuthIdUser("ted"), AuthActionDelete, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("admin")))))
         ) {
           _.deny(TrinoAuth.messages.denyDefault)
         }
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("ted"), AuthActionDelete, AuthResourceQuery(XQuery(None, Some(AuthIdUser("bob")))))
+          AuthQuery(AuthIdUser("ted"), AuthActionDelete, trino.auth.AuthResourceQuery(XQuery(None, Some(AuthIdUser("bob")))))
         ) {
           _.deny(TrinoAuth.messages.denyDefault)
         }
@@ -1167,13 +1169,13 @@ class NamespacedAuthSpec extends AnyWordSpec with Matchers {
         }
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("admin"), AuthActionExecute, AuthResourceFunction(XFunction("very_scary")))
+          AuthQuery(AuthIdUser("admin"), AuthActionExecute, trino.auth.AuthResourceFunction(XFunction("very_scary")))
         ) {
           _.allow()
         }
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("ted"), AuthActionExecute, AuthResourceFunction(XFunction("very_scary")))
+          AuthQuery(AuthIdUser("ted"), AuthActionExecute, trino.auth.AuthResourceFunction(XFunction("very_scary")))
         ) {
           _.allow()
         }
@@ -1191,7 +1193,7 @@ class NamespacedAuthSpec extends AnyWordSpec with Matchers {
         }
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("admin"), AuthActionExecute, AuthResourceProcedure(XProcedure("nothing_scary")))
+          AuthQuery(AuthIdUser("admin"), AuthActionExecute, trino.auth.AuthResourceProcedure(XProcedure("nothing_scary")))
         ) {
           _.allow()
         }
@@ -1201,7 +1203,7 @@ class NamespacedAuthSpec extends AnyWordSpec with Matchers {
         //sac.checkCanExecuteProcedure()
 
         assertQueryResult(
-          AuthQuery(AuthIdUser("ted"), AuthActionExecute, AuthResourceProcedure(XProcedure("nothing_scary")))
+          AuthQuery(AuthIdUser("ted"), AuthActionExecute, trino.auth.AuthResourceProcedure(XProcedure("nothing_scary")))
         ) {
           _.deny(TrinoAuth.messages.denyDefault)
         }

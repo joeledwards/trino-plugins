@@ -7,6 +7,10 @@
 
 package com.simondata.trino;
 
+import com.simondata.trino.auth.CustomSystemAccessControl;
+import com.simondata.trino.auth.NamespacedAuth;
+import com.simondata.trino.auth.TrinoAuth;
+import com.simondata.trino.event.QueryEvents;
 import io.trino.spi.Plugin;
 import io.trino.spi.eventlistener.EventListenerFactory;
 import io.trino.spi.eventlistener.EventListener;

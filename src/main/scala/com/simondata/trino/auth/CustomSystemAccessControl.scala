@@ -5,20 +5,22 @@
  * found in the LICENSE file in the root directory of this source tree.
  */
 
-package com.simondata.trino
+package com.simondata.trino.auth
+
+import com.simondata.trino.event.QueryEvents
+import com.simondata.trino.{AuthPlugin, Catalog, Column, Logger, PluginContext, Record, Schema, Session, Table, XFunction, XProcedure, XQuery}
+import com.simondata.util.{Config, Types, XRay}
+import io.trino.spi.`type`.Type
+import io.trino.spi.connector.{CatalogSchemaName, CatalogSchemaRoutineName, CatalogSchemaTableName, SchemaTableName}
+import io.trino.spi.eventlistener.EventListener
+import io.trino.spi.security.AccessDeniedException._
+import io.trino.spi.security._
 
 import java.security.Principal
 import java.util
 import java.util.Optional
-
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
-import com.simondata.util.{Config, Types, XRay}
-import io.trino.spi.`type`.Type
-import io.trino.spi.connector.{CatalogSchemaName, CatalogSchemaRoutineName, CatalogSchemaTableName, ColumnMetadata, SchemaTableName}
-import io.trino.spi.eventlistener.EventListener
-import io.trino.spi.security.AccessDeniedException.{denyAddColumn, denyCatalogAccess, denyCommentColumn, denyCommentTable, denyCreateSchema, denyCreateTable, denyCreateView, denyCreateViewWithSelect, denyDeleteTable, denyDropColumn, denyDropSchema, denyDropTable, denyDropView, denyExecuteFunction, denyExecuteProcedure, denyExecuteQuery, denyGrantExecuteFunctionPrivilege, denyGrantTablePrivilege, denyImpersonateUser, denyInsertTable, denyReadSystemInformationAccess, denyRenameColumn, denyRenameSchema, denyRenameTable, denyRenameView, denyRevokeTablePrivilege, denySelectColumns, denySetCatalogSessionProperty, denySetSchemaAuthorization, denySetSystemSessionProperty, denySetUser, denyShowColumns, denyShowCreateSchema, denyShowCreateTable, denyShowRoles, denyShowSchemas, denyShowTables, denyViewQuery, denyWriteSystemInformationAccess}
-import io.trino.spi.security.{TrinoPrincipal, Privilege, SystemAccessControl, SystemSecurityContext, ViewExpression}
 
 /**
  * Custom metadata associated with a authorization check.
@@ -214,7 +216,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
     val id: AuthId = Types.toOption(principal).map(AuthId.of(_)).getOrElse(AuthIdUnknown)
 
     evaluateAuthQuery(
-      AuthQuery(id, AuthActionUpdate, AuthResourceSession(Session(Some("user"), Some(userName))))
+      AuthQuery(id, AuthActionUpdate, auth.AuthResourceSession(Session(Some("user"), Some(userName))))
     ) {
       denySetUser(principal, userName)
     }
@@ -232,7 +234,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
     val id: AuthId = AuthId.of(context)
 
     evaluateAuthQuery(
-      AuthQuery(id, AuthActionRead, AuthResourceQuery(XQuery.from(context, queryOwner)))
+      AuthQuery(id, AuthActionRead, auth.AuthResourceQuery(XQuery.from(context, queryOwner)))
     ) {
       denyViewQuery(s"${id} cannot view queries owned by ${AuthIdUser(queryOwner)}")
     }
@@ -243,7 +245,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
       context,
       queryOwners.asScala.toList
     ) { owner =>
-      AuthResourceQuery(XQuery.from(context, owner))
+      auth.AuthResourceQuery(XQuery.from(context, owner))
     } toSet
 
     allowed asJava
@@ -253,7 +255,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
     val id: AuthId = AuthId.of(context)
 
     evaluateAuthQuery(
-      AuthQuery(id, AuthActionDelete, AuthResourceQuery(XQuery.from(context, queryOwner)))
+      AuthQuery(id, AuthActionDelete, auth.AuthResourceQuery(XQuery.from(context, queryOwner)))
     ) {
       denyViewQuery(s"${id} cannot kill queries owned by ${AuthIdUser(queryOwner)}")
     }
@@ -277,7 +279,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanSetSystemSessionProperty(context: SystemSecurityContext, propertyName: String): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionUpdate, AuthResourceSession(Session(Some(propertyName))))
+      AuthQuery(AuthId.of(context), AuthActionUpdate, auth.AuthResourceSession(Session(Some(propertyName))))
     ) {
       denySetSystemSessionProperty(propertyName)
     }
@@ -296,7 +298,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
       context,
       catalogs.asScala.toList
     ) { catalogName =>
-      AuthResourceCatalog(Catalog(catalogName))
+      auth.AuthResourceCatalog(Catalog(catalogName))
     } toSet
 
     allowed asJava
@@ -312,7 +314,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanDropSchema(context: SystemSecurityContext, schema: CatalogSchemaName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionDelete, AuthResourceSchema(Schema.of(schema)))
+      AuthQuery(AuthId.of(context), AuthActionDelete, auth.AuthResourceSchema(Schema.of(schema)))
     ) {
       denyDropSchema(schema.toString)
     }
@@ -320,7 +322,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanRenameSchema(context: SystemSecurityContext, schema: CatalogSchemaName, newSchemaName: String): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionUpdate, AuthResourceSchema(Schema.of(schema)))
+      AuthQuery(AuthId.of(context), AuthActionUpdate, auth.AuthResourceSchema(Schema.of(schema)))
     ) {
       denyRenameSchema(schema.toString, newSchemaName)
     }
@@ -328,7 +330,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanSetSchemaAuthorization(context: SystemSecurityContext, schema: CatalogSchemaName, principal: TrinoPrincipal): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionUpdate, AuthResourceSchema(Schema.of(schema)))
+      AuthQuery(AuthId.of(context), AuthActionUpdate, auth.AuthResourceSchema(Schema.of(schema)))
     ) {
       denySetSchemaAuthorization(schema.getSchemaName, principal)
     }
@@ -336,7 +338,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanShowSchemas(context: SystemSecurityContext, catalogName: String): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionRead, AuthResourceCatalog(Catalog.of(catalogName)))
+      AuthQuery(AuthId.of(context), AuthActionRead, auth.AuthResourceCatalog(Catalog.of(catalogName)))
     ) {
       denyShowSchemas()
     }
@@ -347,7 +349,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
       context,
       schemaNames.asScala.toList
     ) { schemaName =>
-      AuthResourceSchema(Schema(schemaName, Catalog(catalogName)))
+      auth.AuthResourceSchema(Schema(schemaName, Catalog(catalogName)))
     } toSet
 
     allowed asJava
@@ -355,7 +357,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanShowCreateSchema(context: SystemSecurityContext, schemaName: CatalogSchemaName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionRead, AuthResourceSchema(Schema.of(schemaName)))
+      AuthQuery(AuthId.of(context), AuthActionRead, auth.AuthResourceSchema(Schema.of(schemaName)))
     ) {
       denyShowCreateSchema(schemaName.getSchemaName)
     }
@@ -371,7 +373,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanCreateTable(context: SystemSecurityContext, table: CatalogSchemaTableName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionCreate, AuthResourceTable(Table.of(table)))
+      AuthQuery(AuthId.of(context), AuthActionCreate, auth.AuthResourceTable(Table.of(table)))
     ) {
       denyCreateTable(table.toString)
     }
@@ -379,7 +381,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanDropTable(context: SystemSecurityContext, table: CatalogSchemaTableName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionDelete, AuthResourceTable(Table.of(table)))
+      AuthQuery(AuthId.of(context), AuthActionDelete, auth.AuthResourceTable(Table.of(table)))
     ) {
       denyDropTable(table.toString)
     }
@@ -387,7 +389,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanRenameTable(context: SystemSecurityContext, table: CatalogSchemaTableName, newTable: CatalogSchemaTableName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionUpdate, AuthResourceTable(Table.of(table)))
+      AuthQuery(AuthId.of(context), AuthActionUpdate, auth.AuthResourceTable(Table.of(table)))
     ) {
       denyRenameTable(table.toString, newTable.toString)
     }
@@ -395,7 +397,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanSetTableComment(context: SystemSecurityContext, table: CatalogSchemaTableName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionUpdate, AuthResourceTable(Table.of(table)))
+      AuthQuery(AuthId.of(context), AuthActionUpdate, auth.AuthResourceTable(Table.of(table)))
     ) {
       denyCommentTable(table.toString)
     }
@@ -403,7 +405,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanSetColumnComment(context: SystemSecurityContext, table: CatalogSchemaTableName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionUpdate, AuthResourceTable(Table.of(table)))
+      AuthQuery(AuthId.of(context), AuthActionUpdate, auth.AuthResourceTable(Table.of(table)))
     ) {
       denyCommentColumn(table.getSchemaTableName.getTableName)
     }
@@ -411,7 +413,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanShowTables(context: SystemSecurityContext, schema: CatalogSchemaName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionRead, AuthResourceSchema(Schema.of(schema)))
+      AuthQuery(AuthId.of(context), AuthActionRead, auth.AuthResourceSchema(Schema.of(schema)))
     ) {
       denyShowTables(schema.getSchemaName)
     }
@@ -422,7 +424,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
       context,
       tableNames.asScala.toList
     ) { table =>
-      AuthResourceTable(Table(table.getTableName, Schema(table.getSchemaName, Catalog(catalogName))))
+      auth.AuthResourceTable(Table(table.getTableName, Schema(table.getSchemaName, Catalog(catalogName))))
     } toSet
 
     allowed asJava
@@ -430,7 +432,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanShowColumns(context: SystemSecurityContext, table: CatalogSchemaTableName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionRead, AuthResourceTable(Table.of(table)))
+      AuthQuery(AuthId.of(context), AuthActionRead, auth.AuthResourceTable(Table.of(table)))
     ) {
       denyShowColumns(table.getSchemaTableName.getTableName)
     }
@@ -451,7 +453,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanAddColumn(context: SystemSecurityContext, table: CatalogSchemaTableName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionUpdate, AuthResourceTable(Table.of(table)))
+      AuthQuery(AuthId.of(context), AuthActionUpdate, auth.AuthResourceTable(Table.of(table)))
     ) {
       denyAddColumn(table.toString)
     }
@@ -459,7 +461,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanDropColumn(context: SystemSecurityContext, table: CatalogSchemaTableName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionUpdate, AuthResourceTable(Table.of(table)))
+      AuthQuery(AuthId.of(context), AuthActionUpdate, auth.AuthResourceTable(Table.of(table)))
     ) {
       denyDropColumn(table.toString)
     }
@@ -467,7 +469,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanRenameColumn(context: SystemSecurityContext, table: CatalogSchemaTableName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionUpdate, AuthResourceTable(Table.of(table)))
+      AuthQuery(AuthId.of(context), AuthActionUpdate, auth.AuthResourceTable(Table.of(table)))
     ) {
       denyRenameColumn(table.toString)
     }
@@ -475,7 +477,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanSelectFromColumns(context: SystemSecurityContext, table: CatalogSchemaTableName, columns: util.Set[String]): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionRead, AuthResourceTable(Table.of(table)))
+      AuthQuery(AuthId.of(context), AuthActionRead, auth.AuthResourceTable(Table.of(table)))
     ) {
       denySelectColumns(table.toString, columns)
     }
@@ -491,7 +493,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanDeleteFromTable(context: SystemSecurityContext, table: CatalogSchemaTableName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionDelete, AuthResourceRecord(Record.in(table)))
+      AuthQuery(AuthId.of(context), AuthActionDelete, auth.AuthResourceRecord(Record.in(table)))
     ) {
       denyDeleteTable(table.toString)
     }
@@ -507,7 +509,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanRenameView(context: SystemSecurityContext, view: CatalogSchemaTableName, newView: CatalogSchemaTableName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionUpdate, AuthResourceView(Table.of(view)))
+      AuthQuery(AuthId.of(context), AuthActionUpdate, auth.AuthResourceView(Table.of(view)))
     ) {
       denyRenameView(view.getSchemaTableName.getTableName, newView.getSchemaTableName.getTableName)
     }
@@ -515,7 +517,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanDropView(context: SystemSecurityContext, view: CatalogSchemaTableName): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionDelete, AuthResourceView(Table.of(view)))
+      AuthQuery(AuthId.of(context), AuthActionDelete, auth.AuthResourceView(Table.of(view)))
     ) {
       denyDropView(view.toString)
     }
@@ -529,7 +531,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
       .toList
       .map(column => {
         AuthQuery(id, AuthActionRead, AuthResourceColumn(Column(column, table)))
-      }) ::: AuthQuery(id, AuthActionCreate, AuthResourceView(table)) :: Nil
+      }) ::: AuthQuery(id, AuthActionCreate, auth.AuthResourceView(table)) :: Nil
 
     evaluateAuthFilter(
       FilterRequest(id, queries)
@@ -548,7 +550,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanSetCatalogSessionProperty(context: SystemSecurityContext, catalogName: String, propertyName: String): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionUpdate, AuthResourceCatalog(Catalog(catalogName)))
+      AuthQuery(AuthId.of(context), AuthActionUpdate, auth.AuthResourceCatalog(Catalog(catalogName)))
     ) {
       denySetCatalogSessionProperty(propertyName)
     }
@@ -556,7 +558,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanGrantTablePrivilege(context: SystemSecurityContext, privilege: Privilege, table: CatalogSchemaTableName, grantee: TrinoPrincipal, withGrantOption: Boolean): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionGrant, AuthResourceTable(Table.of(table)))
+      AuthQuery(AuthId.of(context), AuthActionGrant, auth.AuthResourceTable(Table.of(table)))
     ) {
       denyGrantTablePrivilege(privilege.toString, table.toString)
     }
@@ -564,7 +566,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanRevokeTablePrivilege(context: SystemSecurityContext, privilege: Privilege, table: CatalogSchemaTableName, revokee: TrinoPrincipal, grantOptionFor: Boolean): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionRevoke, AuthResourceTable(Table.of(table)))
+      AuthQuery(AuthId.of(context), AuthActionRevoke, auth.AuthResourceTable(Table.of(table)))
     ) {
       denyRevokeTablePrivilege(privilege.toString, table.toString)
     }
@@ -572,7 +574,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanShowRoles(context: SystemSecurityContext, catalogName: String): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionRead, AuthResourceCatalog(Catalog(catalogName)))
+      AuthQuery(AuthId.of(context), AuthActionRead, auth.AuthResourceCatalog(Catalog(catalogName)))
     ) {
       denyShowRoles(catalogName)
     }
@@ -588,7 +590,7 @@ class CustomSystemAccessControl(auth: TrinoAuth) extends SystemAccessControl {
 
   override def checkCanExecuteFunction(context: SystemSecurityContext, functionName: String): Unit = {
     evaluateAuthQuery(
-      AuthQuery(AuthId.of(context), AuthActionExecute, AuthResourceFunction(XFunction.of(functionName)))
+      AuthQuery(AuthId.of(context), AuthActionExecute, auth.AuthResourceFunction(XFunction.of(functionName)))
     ) {
       denyExecuteFunction(functionName)
     }

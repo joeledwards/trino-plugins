@@ -5,14 +5,16 @@
  * found in the LICENSE file in the root directory of this source tree.
  */
 
-package com.simondata.trino
+package com.simondata.trino.event
+
+import com.simondata.trino._
+import com.simondata.trino.auth.{AuthId, AuthIdUnknown, AuthIdUser}
+import com.simondata.util.{Config, Time, Types, XRay}
+import io.trino.spi.eventlistener._
 
 import java.time.{Duration, Instant}
-import scala.jdk.CollectionConverters._
-import com.simondata.util.{Config, Time, Types, XRay}
-import io.trino.spi.eventlistener.{EventListener, QueryCompletedEvent, QueryContext, QueryCreatedEvent, SplitCompletedEvent}
-
 import scala.concurrent.{ExecutionContext, Future}
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 /**

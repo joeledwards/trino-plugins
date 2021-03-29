@@ -7,6 +7,7 @@
 
 package com.simondata.trino
 
+import com.simondata.trino.auth.{AuthId, AuthIdUser}
 import com.simondata.util.{Config, Env, Slack, SlackSendError, Time}
 import play.api.libs.json.{JsObject, JsValue, Json}
 

@@ -5,7 +5,9 @@
  * found in the LICENSE file in the root directory of this source tree.
  */
 
-package com.simondata.trino
+package com.simondata.trino.auth
+
+import com.simondata.trino._
 
 /**
  * Example implementation of TrinoAuth which uses a simple schema naming convention

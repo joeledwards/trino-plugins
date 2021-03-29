@@ -5,12 +5,13 @@
  * found in the LICENSE file in the root directory of this source tree.
  */
 
-package com.simondata.trino
+package com.simondata.trino.auth
+
+import com.simondata.trino._
+import io.trino.spi.security.SystemSecurityContext
 
 import java.nio.file.AccessDeniedException
 import java.security.Principal
-
-import io.trino.spi.security.SystemSecurityContext
 
 // Auth Identities (who is trying to access/modify the resource)
 sealed abstract class AuthId(category: String) {

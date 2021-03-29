@@ -7,8 +7,9 @@
 
 package com.simondata.trino
 
-import java.util.concurrent.TimeUnit
+import com.simondata.trino.auth.AuthIdUser
 
+import java.util.concurrent.TimeUnit
 import com.simondata.util.{Config, Env, Http, HttpJson, HttpOptions, HttpResponse, Net, Slack, Time, XRay}
 import play.api.libs.json.{JsValue, Json}
 

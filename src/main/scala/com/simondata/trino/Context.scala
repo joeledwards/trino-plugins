@@ -7,6 +7,7 @@
 
 package com.simondata.trino
 
+import com.simondata.trino.auth.{AuthId, AuthIdUser}
 import com.simondata.util.Types
 import io.trino.spi.connector.{CatalogSchemaName, CatalogSchemaTableName}
 import io.trino.spi.security.SystemSecurityContext
